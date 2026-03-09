@@ -1,106 +1,177 @@
-# LAN Share Pro (Python, No extra app)
+# LAN Share Complete
 
-一个完整的局域网文件共享服务，适合两台或多台 Mac/PC 在同一网络内互传。
+> A browser-first LAN file sharing service for Mac and PC, built with Python standard library only.
+>
+> One device starts the server, every other device opens a browser. No extra desktop app required.
 
-详细文档: [docs/DETAILED_GUIDE.zh-CN.md](docs/DETAILED_GUIDE.zh-CN.md)
+[详细说明文档（中文）](docs/DETAILED_GUIDE.zh-CN.md)
 
-## 能力清单
+## Why This Project
 
-- 密码登录 + Cookie 会话
-- SQLite 元数据管理
-- 文件上传（流式写入，适合大文件）
-- 文件下载（支持 HTTP Range 断点续传）
-- 文件列表、搜索、分页、排序
-- 文件删除（软删除 + 物理删除）
-- SHA-256 完整性校验
-- 分享链接（有效期 + 下载次数限制）
-- 共享便签实时同步（多设备自动更新）
-- 文件列表实时刷新（上传、删除、下载计数）
-- 局域网访问地址展示
-- 前端页面：拖拽上传、进度、操作按钮、分享弹窗、共享便签
+This project is designed for a simple but practical scenario:
 
-## 目录结构
+- You have two or more devices on the same LAN
+- You want to transfer files through a browser
+- You do not want to install a new application
+- You still want a complete product experience instead of a bare file server
+
+Compared with a temporary script or a plain directory listing server, this project adds authentication, metadata management, resumable downloads, share links, and real-time sync for both file list changes and shared notes.
+
+## Core Features
+
+- Password login with cookie session
+- Drag-and-drop upload in browser
+- Streamed file upload for large files
+- HTTP Range download for resume support
+- File list with search, pagination, and sorting
+- Soft delete plus physical file cleanup
+- SHA-256 checksum generation
+- Public share links with expiration and max-download limits
+- Shared note with real-time sync across devices
+- Server-Sent Events for live file list updates
+- SQLite metadata storage
+- LAN address discovery for easier access from other devices
+
+## Product Model
+
+Only one machine needs to run this project.
+
+- Device A: starts `server.py`
+- Device B / C / phone / tablet: opens `http://DeviceA-IP:8765` in a browser
+- All logged-in devices can upload, download, delete, and update the shared note in real time
+
+This means the project works more like a lightweight private LAN portal than a peer-to-peer desktop app.
+
+## Quick Start
+
+### 1. Clone the repository
+
+```bash
+git clone git@github.com:nihaoyaxiaofei/lan-share-complete.git
+cd lan-share-complete
+```
+
+### 2. Start the server
+
+```bash
+python3 server.py
+```
+
+On first launch, the server prints:
+
+- local address, such as `http://127.0.0.1:8765`
+- LAN address, such as `http://192.168.x.x:8765`
+- admin password, such as `Admin Password: xxxxx`
+
+### 3. Open it from another device
+
+Make sure both devices are on the same LAN, then open:
+
+```text
+http://<server-lan-ip>:8765
+```
+
+### 4. Log in and transfer files
+
+After login, you can:
+
+- drag files into the page to upload
+- download existing files
+- create share links
+- edit the shared note
+- watch file list updates appear automatically on other devices
+
+## Typical Use Cases
+
+### Two MacBooks transfer files
+
+- Mac A runs the server
+- Mac B opens the browser page
+- Either side can upload files to the shared space
+- Both sides see file list and note updates in real time
+
+### Temporary team dropbox on office Wi-Fi
+
+- One machine hosts the service during a meeting
+- Everyone joins with a browser
+- Files can be exchanged without installing tools
+
+### Shared text board across devices
+
+- Use the shared note for quick cross-device text handoff
+- Updates propagate automatically through SSE
+
+## Configuration
+
+The server can be configured with environment variables.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LAN_SHARE_HOST` | `0.0.0.0` | Listen address |
+| `LAN_SHARE_PORT` | `8765` | Server port |
+| `LAN_SHARE_PASSWORD` | auto-generated | Admin password |
+| `LAN_SHARE_MAX_MB` | `4096` | Max upload size in MB |
+| `LAN_SHARE_SESSION_HOURS` | `24` | Session lifetime in hours |
+| `LAN_SHARE_DATA_DIR` | `./data` | Metadata directory |
+| `LAN_SHARE_UPLOAD_DIR` | `./uploads` | File storage directory |
+
+Example:
+
+```bash
+LAN_SHARE_PORT=9000 \
+LAN_SHARE_PASSWORD='YourStrongPass' \
+LAN_SHARE_MAX_MB=8192 \
+python3 server.py
+```
+
+## API Overview
+
+- `POST /api/login`
+- `POST /api/logout`
+- `GET /api/me`
+- `GET /api/network`
+- `GET /api/stats`
+- `GET /api/events`
+- `GET /api/note`
+- `POST /api/note`
+- `GET /api/files`
+- `POST /api/upload?filename=...`
+- `GET /api/files/:id/download`
+- `DELETE /api/files/:id`
+- `POST /api/files/:id/share`
+- `GET /api/public/:code/download`
+- `GET /s/:code`
+
+For API examples and implementation details, see [详细说明文档（中文）](docs/DETAILED_GUIDE.zh-CN.md).
+
+## Project Structure
 
 ```text
 lan-share-complete/
   server.py
+  README.md
+  docs/
+    DETAILED_GUIDE.zh-CN.md
   web/
     index.html
     styles.css
     app.js
   data/
-    lan_share.db
-    admin_password.txt
   uploads/
 ```
 
-## 启动方式
+## Security Notes
 
-```bash
-cd /Users/yanlongfei/lan-share-complete
-python3 server.py
-```
+This project is intended for trusted LAN environments.
 
-首次启动会自动生成访问密码，并打印在终端：
+- Use a strong password through `LAN_SHARE_PASSWORD`
+- Do not expose it directly to the public internet
+- If internet access is required, place it behind HTTPS and an access control layer
+- Stop the service when it is no longer needed
 
-- `Admin Password: xxxxx`
+## Roadmap
 
-浏览器访问：
-
-- 本机：`http://127.0.0.1:8765`
-- 局域网：`http://你的IP:8765`
-
-## 可配置项（环境变量）
-
-- `LAN_SHARE_HOST` 默认 `0.0.0.0`
-- `LAN_SHARE_PORT` 默认 `8765`
-- `LAN_SHARE_PASSWORD` 手动指定访问密码（默认自动生成并保存）
-- `LAN_SHARE_MAX_MB` 单文件大小上限，默认 `4096`
-- `LAN_SHARE_SESSION_HOURS` 登录会话时长，默认 `24`
-- `LAN_SHARE_DATA_DIR` 数据目录
-- `LAN_SHARE_UPLOAD_DIR` 文件目录
-
-示例：
-
-```bash
-LAN_SHARE_PORT=9000 LAN_SHARE_MAX_MB=8192 python3 server.py
-```
-
-## API 一览
-
-- `POST /api/login` 登录
-- `POST /api/logout` 退出
-- `GET /api/me` 当前登录状态
-- `GET /api/network` 局域网访问地址
-- `GET /api/stats` 统计信息
-- `GET /api/events` 实时事件流（SSE）
-- `GET /api/note` 获取共享便签
-- `POST /api/note` 更新共享便签
-- `GET /api/files` 文件列表（query/page/page_size/sort/order）
-- `POST /api/upload?filename=...` 上传文件（body 为二进制文件）
-- `GET /api/files/:id/download` 下载文件（支持 Range）
-- `DELETE /api/files/:id` 删除文件
-- `POST /api/files/:id/share` 生成分享链接
-- `GET /api/public/:code/download` 通过分享码下载（免登录）
-- `GET /s/:code` 分享落地页
-
-## 安全建议
-
-- 只在可信局域网使用
-- 使用强密码（可通过 `LAN_SHARE_PASSWORD` 指定）
-- 用完后停止服务，避免长期暴露
-- 若要跨公网，建议反向代理 + HTTPS + IP 白名单
-
-## 常见问题
-
-1. 其他设备打不开
-- 确认在同一 Wi-Fi
-- 检查防火墙是否允许 Python 监听端口
-- 使用 `http://服务端局域网IP:端口` 访问
-
-2. 上传失败
-- 检查是否超过 `LAN_SHARE_MAX_MB`
-- 检查磁盘剩余空间
-
-3. 忘记密码
-- 删除 `data/admin_password.txt` 后重启服务自动生成新密码
+- upload resume support for very large files
+- QR code generation for faster mobile access
+- multi-user roles and permission scopes
+- optional HTTPS reverse proxy deployment guide

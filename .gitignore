@@ -1,5 +1,39 @@
+# macOS
+.DS_Store
+
+# Python bytecode
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+
+# Python tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment files
+.env
+.env.*
+
+# IDEs
+.vscode/
+.idea/
+
+# Runtime files
+*.log
+*.pid
+*.db
+*.sqlite3
+
+# Application data
 data/
 uploads/
-.DS_Store
