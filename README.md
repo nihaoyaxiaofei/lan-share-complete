@@ -2,45 +2,64 @@
 
 > A browser-first LAN file sharing service for Mac and PC, built with Python standard library only.
 >
-> One device starts the server, every other device opens a browser. No extra desktop app required.
+> One device starts `server.py`, every other device opens a browser. No desktop client, no extra dependency stack.
 
 [详细说明文档（中文）](docs/DETAILED_GUIDE.zh-CN.md)
 
-## Why This Project
+## Preview
 
-This project is designed for a simple but practical scenario:
+| Main workspace | Share link flow |
+| --- | --- |
+| ![LAN Share dashboard](docs/assets/lan-share-dashboard.png) | ![LAN Share share link flow](docs/assets/lan-share-share-link.png) |
+| Upload center, live note, LAN address panel, stats, and searchable file library in one page. | Share link generation with expiration window and download limit controls. |
 
-- You have two or more devices on the same LAN
-- You want to transfer files through a browser
-- You do not want to install a new application
-- You still want a complete product experience instead of a bare file server
+## Why This Repo Is Useful
 
-Compared with a temporary script or a plain directory listing server, this project adds authentication, metadata management, resumable downloads, share links, and real-time sync for both file list changes and shared notes.
+This project targets a very practical workflow:
 
-## Core Features
+- one machine inside the LAN hosts the service
+- every other device joins from a browser
+- files stay on the host machine instead of a third-party cloud
+- the whole product is still comfortable to use, not just a raw directory listing
 
-- Password login with cookie session
-- Drag-and-drop upload in browser
-- Streamed file upload for large files
-- HTTP Range download for resume support
-- File list with search, pagination, and sorting
-- Soft delete plus physical file cleanup
-- SHA-256 checksum generation
-- Public share links with expiration and max-download limits
-- Shared note with real-time sync across devices
-- Server-Sent Events for live file list updates
-- SQLite metadata storage
-- LAN address discovery for easier access from other devices
+Compared with a temporary transfer script, this repo already includes authentication, metadata management, share codes, resumable downloads, live updates, and a polished browser UI.
+
+## Code-Verified Highlights
+
+After reading the full codebase, these are the core behaviors implemented today:
+
+- Password login with `HttpOnly` cookie session
+- In-memory session expiration with configurable lifetime
+- Login throttling after repeated failed attempts
+- Streamed upload pipeline with temporary `.part` files and SHA-256 checksum generation
+- Chunked request body handling for large uploads
+- File library with search, pagination, sort by time / size / name / downloads
+- Download endpoint with HTTP `Range` support for resume workflows
+- Soft delete in SQLite plus physical file cleanup on disk
+- Share links with expiration time and max-download limits
+- Public share landing page at `/s/<code>`
+- Shared note synced across devices
+- Server-Sent Events for live file list and note refresh
+- LAN address discovery so the host can quickly tell other devices where to connect
 
 ## Product Model
 
-Only one machine needs to run this project.
+Only one machine needs to run the app:
 
-- Device A: starts `server.py`
-- Device B / C / phone / tablet: opens `http://DeviceA-IP:8765` in a browser
-- All logged-in devices can upload, download, delete, and update the shared note in real time
+- Device A: runs `python3 server.py`
+- Device B / C / phone / tablet: opens `http://DeviceA-IP:8765`
+- Logged-in devices can upload, download, delete, create share links, and update the shared note in real time
 
-This means the project works more like a lightweight private LAN portal than a peer-to-peer desktop app.
+In practice, it behaves more like a lightweight private LAN portal than a peer-to-peer desktop application.
+
+## Tech Stack
+
+- Backend: a single `server.py` using `http.server`, `sqlite3`, `hashlib`, `secrets`, and other Python standard library modules
+- Frontend: plain `HTML`, `CSS`, and `JavaScript` in `web/`
+- Storage: SQLite metadata in `data/lan_share.db` and file blobs in `uploads/`
+- Realtime: SSE over `GET /api/events`
+
+There is no framework dependency and no package installation step in the repo itself.
 
 ## Quick Start
 
@@ -63,6 +82,8 @@ On first launch, the server prints:
 - LAN address, such as `http://192.168.x.x:8765`
 - admin password, such as `Admin Password: xxxxx`
 
+If `LAN_SHARE_PASSWORD` is not set, the password is auto-generated and stored in `data/admin_password.txt`.
+
 ### 3. Open it from another device
 
 Make sure both devices are on the same LAN, then open:
@@ -71,35 +92,36 @@ Make sure both devices are on the same LAN, then open:
 http://<server-lan-ip>:8765
 ```
 
-### 4. Log in and transfer files
+### 4. Log in and start transferring
 
 After login, you can:
 
 - drag files into the page to upload
-- download existing files
-- create share links
-- edit the shared note
-- watch file list updates appear automatically on other devices
+- watch upload progress in the browser
+- browse the shared file library
+- download with resume support
+- create expiring share links
+- edit the shared note and watch it sync live on other devices
 
-## Typical Use Cases
+## Common Workflows
 
-### Two MacBooks transfer files
+### Two laptops transfer files
 
-- Mac A runs the server
-- Mac B opens the browser page
-- Either side can upload files to the shared space
-- Both sides see file list and note updates in real time
+- Laptop A runs the server
+- Laptop B opens the LAN URL in a browser
+- Either side uploads to the shared space
+- Both sides see updates without refreshing the whole page
 
 ### Temporary team dropbox on office Wi-Fi
 
-- One machine hosts the service during a meeting
-- Everyone joins with a browser
-- Files can be exchanged without installing tools
+- one machine hosts during a meeting or workshop
+- everyone joins through a browser
+- files can be exchanged without installing a client
 
 ### Shared text board across devices
 
-- Use the shared note for quick cross-device text handoff
-- Updates propagate automatically through SSE
+- use the live note for links, snippets, Wi-Fi info, or short handoff messages
+- note updates propagate through SSE to all connected clients
 
 ## Configuration
 
@@ -124,7 +146,7 @@ LAN_SHARE_MAX_MB=8192 \
 python3 server.py
 ```
 
-## API Overview
+## API Surface
 
 - `POST /api/login`
 - `POST /api/logout`
@@ -142,7 +164,19 @@ python3 server.py
 - `GET /api/public/:code/download`
 - `GET /s/:code`
 
-For API examples and implementation details, see [详细说明文档（中文）](docs/DETAILED_GUIDE.zh-CN.md).
+For `curl` examples and implementation notes, see [详细说明文档（中文）](docs/DETAILED_GUIDE.zh-CN.md).
+
+## Implementation Notes
+
+These details come directly from the current code, which helps set correct expectations for contributors and users:
+
+- Sessions are kept in memory, so restarting the server clears active logins.
+- Login protection currently locks an IP after 6 failed attempts for 90 seconds.
+- Uploads are written to temporary files first and moved into place only after completion.
+- Download resume support is implemented through single-range HTTP responses.
+- Deleted files are hidden from listings and removed from disk, while metadata keeps a soft-delete marker.
+- Share downloads increment both share counters and the file's total download count.
+- The shared note is limited to 20,000 characters.
 
 ## Project Structure
 
@@ -152,6 +186,7 @@ lan-share-complete/
   README.md
   docs/
     DETAILED_GUIDE.zh-CN.md
+    assets/
   web/
     index.html
     styles.css
@@ -162,16 +197,17 @@ lan-share-complete/
 
 ## Security Notes
 
-This project is intended for trusted LAN environments.
+This project is designed for trusted LAN environments.
 
 - Use a strong password through `LAN_SHARE_PASSWORD`
 - Do not expose it directly to the public internet
-- If internet access is required, place it behind HTTPS and an access control layer
+- If internet access is required, put it behind HTTPS and an access-control layer
 - Stop the service when it is no longer needed
 
 ## Roadmap
 
-- upload resume support for very large files
+- resumable uploads for very large files
 - QR code generation for faster mobile access
 - multi-user roles and permission scopes
-- optional HTTPS reverse proxy deployment guide
+- reverse proxy / HTTPS deployment guide
+
