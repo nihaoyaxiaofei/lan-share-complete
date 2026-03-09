@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LAN Share Pro</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="stage-backdrop" aria-hidden="true">
+      <div class="mesh mesh-a"></div>
+      <div class="mesh mesh-b"></div>
+      <div class="grain"></div>
+    </div>
+
+    <div class="login-mask" id="loginMask">
+      <form class="login-card" id="loginForm" autocomplete="off">
+        <h2>LAN Share Pro</h2>
+        <p>输入访问密码后进入共享空间。</p>
+        <input class="input" id="passwordInput" type="password" placeholder="访问密码" required />
+        <div class="spacer-10"></div>
+        <button class="button button-primary" type="submit">进入</button>
+        <div class="error" id="loginError"></div>
+      </form>
+    </div>
+
+    <div class="app-shell">
+      <aside class="sidebar reveal delay-1">
+        <div>
+          <div class="brand-kicker">Local Network File Exchange</div>
+          <h1 class="brand-title">LAN Share</h1>
+          <p class="brand-sub">局域网内的完整文件共享站。支持上传、检索、下载、删除、分享码、实时便签与自动同步刷新。</p>
+        </div>
+
+        <section class="stats-section">
+          <h3 class="panel-title sidebar-title">实时统计</h3>
+          <div class="stat-grid">
+            <article class="stat-card">
+              <div class="stat-label">文件数量</div>
+              <div class="stat-value" id="statFiles">-</div>
+            </article>
+            <article class="stat-card">
+              <div class="stat-label">总容量</div>
+              <div class="stat-value" id="statSize">-</div>
+            </article>
+            <article class="stat-card">
+              <div class="stat-label">24 小时新增</div>
+              <div class="stat-value" id="statRecent">-</div>
+            </article>
+          </div>
+        </section>
+
+        <section>
+          <h3 class="panel-title sidebar-title">局域网地址</h3>
+          <div class="network-box" id="networkBox">
+            <div class="network-item">加载中...</div>
+          </div>
+        </section>
+
+        <section>
+          <div class="live-strip">
+            <span class="live-dot" id="liveDot"></span>
+            <span id="liveText">实时通道连接中</span>
+          </div>
+        </section>
+
+        <div class="sidebar-actions">
+          <button class="button button-secondary" id="refreshBtn">刷新列表</button>
+          <button class="button button-ghost" id="logoutBtn">退出登录</button>
+        </div>
+      </aside>
+
+      <main class="main workspace reveal delay-2">
+        <section class="panel panel-hero reveal delay-3">
+          <div class="hero-headline">
+            <div class="hero-corner">LAN · EDITION 2026</div>
+            <div class="hero-line"></div>
+          </div>
+          <h2 class="hero-title">Private File Exchange With Browser-Only Workflow</h2>
+          <p class="hero-sub">
+            不装额外应用，一台机器开服务，其他设备浏览器直连。
+            上传采用流式写入，下载支持断点续传，便签与文件列表支持实时同步。
+          </p>
+          <div class="hero-tags">
+            <span class="hero-tag">Stream Upload</span>
+            <span class="hero-tag">Range Resume</span>
+            <span class="hero-tag">Live Note</span>
+            <span class="hero-tag">Realtime Events</span>
+            <span class="hero-tag">SHA-256</span>
+          </div>
+        </section>
+
+        <div class="panel-grid">
+          <section class="panel panel-upload reveal delay-4">
+            <div class="panel-head">
+              <h3 class="panel-title">上传中心</h3>
+              <span class="panel-chip">Multi Upload</span>
+            </div>
+            <div class="upload-dropzone" id="dropzone">
+              <p><strong>拖拽文件到这里</strong> 或 <button class="button button-primary" type="button" id="pickBtn">选择文件</button></p>
+              <p class="upload-hint">支持多文件并发上传，自动显示进度，服务端将计算 SHA-256 校验值。</p>
+            </div>
+            <div class="progress-list" id="progressList"></div>
+          </section>
+
+          <section class="panel panel-notes reveal delay-5">
+            <div class="panel-head panel-head-start">
+              <div>
+                <h3 class="panel-title">实时共享便签</h3>
+                <p class="panel-sub">适合多设备同步短消息、链接、待办和口令。输入后自动同步。</p>
+              </div>
+              <span class="panel-chip" id="liveBadge" data-state="connecting">Connecting</span>
+            </div>
+            <textarea class="note-editor" id="noteInput" placeholder="输入内容后会自动同步到其他已打开的设备..."></textarea>
+            <div class="note-toolbar">
+              <div class="note-meta" id="noteMeta">尚未同步</div>
+              <div class="note-actions">
+                <button class="button button-primary" type="button" id="saveNoteBtn">立即同步</button>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <section class="panel panel-library reveal delay-5">
+          <h3 class="panel-title">文件库</h3>
+          <div class="toolbar">
+            <input class="input" id="searchInput" placeholder="搜索文件名" />
+            <select class="select" id="sortSelect">
+              <option value="created_at">按上传时间</option>
+              <option value="size">按文件大小</option>
+              <option value="name">按文件名</option>
+              <option value="downloads">按下载次数</option>
+            </select>
+            <select class="select" id="orderSelect">
+              <option value="desc">降序</option>
+              <option value="asc">升序</option>
+            </select>
+            <button class="button button-secondary" id="searchBtn">查询</button>
+          </div>
+
+          <div class="table-wrap table-wrap-spaced">
+            <table class="file-table">
+              <thead>
+                <tr>
+                  <th>文件</th>
+                  <th>大小</th>
+                  <th>类型</th>
+                  <th>哈希</th>
+                  <th>上传时间</th>
+                  <th>下载</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="fileTableBody"></tbody>
+            </table>
+          </div>
+
+          <div class="pagination">
+            <div id="pageInfo">第 1 / 1 页</div>
+            <div>
+              <button class="button button-secondary" id="prevPageBtn">上一页</button>
+              <button class="button button-secondary" id="nextPageBtn">下一页</button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <input id="fileInput" type="file" multiple hidden />
+
+    <div class="modal-mask" id="shareModalMask">
+      <div class="modal">
+        <h3>创建分享链接</h3>
+        <div class="row">
+          <label>有效期(小时)</label>
+          <input class="input" id="shareHours" type="number" min="1" max="720" value="24" />
+          <label>下载上限</label>
+          <input class="input" id="shareMax" type="number" min="1" max="100000" value="20" />
+        </div>
+        <div class="spacer-10"></div>
+        <button class="button button-primary" id="createShareBtn">生成链接</button>
+        <button class="button button-ghost" id="closeShareBtn">关闭</button>
+        <code id="shareOutput">尚未生成</code>
+      </div>
+    </div>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
